@@ -1,11 +1,5 @@
 from fastapi import FastAPI
-
+from controllers import obesity_prediction_controller
 app = FastAPI()
 
-@app.get("/")
-def read_root():
-    return {"message": "Hello, World!"}
-
-@app.get("/home")
-def read_home():
-    return {"message": "Welcome home!"}
+app.include_router(obesity_prediction_controller.router)
