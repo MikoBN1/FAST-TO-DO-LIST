@@ -9,39 +9,59 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
 import io
-from schemas.user_input_schema import UserInput
+from schemas.user_input_schema import UserInput  # твоя схема Pydantic
+
+# Глобальные переменные
+df = None
+label_encoders = {}
+target_encoder = None
+scaler = None
+X_train, X_test, y_train, y_test = None, None, None, None
+categorical_cols = ['Gender', 'family_history_with_overweight', 'FAVC', 'CAEC',
+                    'SMOKE', 'SCC', 'CALC', 'MTRANS']
+numerical_cols = ['Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE']
+error_rates = []
+k_range = range(1, 21)
 
 
 def load_data_from_excel():
     return pd.read_excel("datasets/obes_dataset.xlsx")
 
-df = load_data_from_excel()
-categorical_cols = ['Gender', 'family_history_with_overweight', 'FAVC', 'CAEC',
-                    'SMOKE', 'SCC', 'CALC', 'MTRANS']
 
-le = LabelEncoder()
-for col in categorical_cols:
-    df[col] = le.fit_transform(df[col])
-target_encoder = LabelEncoder()
-df['NObeyesdad'] = target_encoder.fit_transform(df['NObeyesdad'])
-numerical_cols = ['Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE']
-scaler = StandardScaler()
-df[numerical_cols] = scaler.fit_transform(df[numerical_cols])
+def initialize():
+    global df, label_encoders, target_encoder, scaler, X_train, X_test, y_train, y_test
 
-X = df.drop('NObeyesdad', axis=1)
-y = df['NObeyesdad']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-error_rates = []
-k_range = range(1, 21)
+    df = load_data_from_excel()
+
+    # Обучаем LabelEncoder для категорий
+    label_encoders = {}
+    for col in categorical_cols:
+        le = LabelEncoder()
+        le.fit(df[col])
+        label_encoders[col] = le
+
+    # Обучаем LabelEncoder для целевой переменной
+    target_encoder = LabelEncoder()
+    target_encoder.fit(df['NObeyesdad'])
+
+    # Обучаем StandardScaler для числовых колонок
+    scaler = StandardScaler()
+    scaler.fit(df[numerical_cols])
+
+    # Применяем трансформации к данным
+    df_encoded = df.copy()
+    for col in categorical_cols:
+        df_encoded[col] = label_encoders[col].transform(df_encoded[col])
+    df_encoded[numerical_cols] = scaler.transform(df_encoded[numerical_cols])
+    df_encoded['NObeyesdad'] = target_encoder.transform(df_encoded['NObeyesdad'])
+
+    # Разбиваем на тренировочную и тестовую выборки
+    X = df_encoded.drop('NObeyesdad', axis=1)
+    y = df_encoded['NObeyesdad']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
 
 def train_model():
-    for k in k_range:
-        knn = KNeighborsClassifier(n_neighbors=k)
-        knn.fit(X_train, y_train)
-        pred_k = knn.predict(X_test)
-        error_rates.append(1 - accuracy_score(y_test, pred_k))
-
-def get_knn_error_plot():
     error_rates.clear()
     for k in k_range:
         knn = KNeighborsClassifier(n_neighbors=k)
@@ -49,7 +69,10 @@ def get_knn_error_plot():
         pred_k = knn.predict(X_test)
         error_rates.append(1 - accuracy_score(y_test, pred_k))
 
-    plt.figure(figsize=(10,6))
+
+def get_knn_error_plot():
+    train_model()
+    plt.figure(figsize=(10, 6))
     plt.plot(k_range, error_rates, marker='o')
     plt.title('Error Rate vs. K Value')
     plt.xlabel('K')
@@ -58,9 +81,10 @@ def get_knn_error_plot():
 
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
-    plt.close()  # закрываем plt, чтобы не держал ресурсы
+    plt.close()
     buf.seek(0)
     return buf.read()
+
 
 def make_prediction():
     optimal_k = 5
@@ -68,40 +92,41 @@ def make_prediction():
     knn.fit(X_train, y_train)
     return knn.predict(X_test)
 
+
 def get_knn_prediction():
     train_model()
     y_pred = make_prediction()
     report = classification_report(y_test, y_pred, output_dict=True)
-
     return report
 
 
-def add_new_data_and_predict(data: UserInput):
-    df_existing = pd.read_excel("datasets/obes_dataset.xlsx")
-    new_row = pd.DataFrame([data])
+def add_new_data_and_retrain(data: UserInput):
+    global df
+    df_existing = load_data_from_excel()
+    new_row = pd.DataFrame([data.model_dump()])
     df_new = pd.concat([df_existing, new_row], ignore_index=True)
     df_new.to_excel("datasets/obes_dataset.xlsx", index=False)
+
+    initialize()
+
 
 def preprocess_user_input(user_data: UserInput):
     df_user = pd.DataFrame([user_data.model_dump()])
 
     for col in categorical_cols:
-        le = LabelEncoder()
-        df_user[col] = le.fit_transform(df_user[col])
+        le = label_encoders[col]
+        df_user[col] = le.transform(df_user[col])
 
-    scaler = StandardScaler()
-    numerical_cols = ['Age', 'Height', 'Weight', 'FCVC', 'NCP', 'CH2O', 'FAF', 'TUE']
-    df_user[numerical_cols] = scaler.fit_transform(df_user[numerical_cols])
-
+    df_user[numerical_cols] = scaler.transform(df_user[numerical_cols])
     return df_user
+
 
 def predict_obesity_class(user_df):
     knn = KNeighborsClassifier(n_neighbors=5)
     knn.fit(X_train, y_train)
     pred_encoded = knn.predict(user_df)
-
-    target_encoder = LabelEncoder()
-    target_encoder.fit(df['NObeyesdad'])
     pred_class = target_encoder.inverse_transform(pred_encoded)
-
     return pred_class[0]
+
+
+initialize()

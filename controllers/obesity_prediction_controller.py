@@ -15,6 +15,6 @@ def get_error_plot():
 @router.post("/obesity/user")
 def predict(user_data: UserInput):
     user_df = preprocess_user_input(user_data)
-    # pred_class = predict_obesity_class(user_df)
+    pred_class = predict_obesity_class(user_df)
     user_dict = user_df.to_dict(orient="records")
-    return {"pred_class": user_dict}
+    return {"pred_class": pred_class}
