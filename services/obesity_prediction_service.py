@@ -1,17 +1,14 @@
-# Импорт необходимых библиотек
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-from pathlib import Path
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, accuracy_score
 import io
-from schemas.user_input_schema import UserInput  # твоя схема Pydantic
 
-# Глобальные переменные
+from schemas.dataset_schema import ObesityInput
+from schemas.user_input_schema import UserInput
+
 df = None
 label_encoders = {}
 target_encoder = None
@@ -33,29 +30,24 @@ def initialize():
 
     df = load_data_from_excel()
 
-    # Обучаем LabelEncoder для категорий
     label_encoders = {}
     for col in categorical_cols:
         le = LabelEncoder()
         le.fit(df[col])
         label_encoders[col] = le
 
-    # Обучаем LabelEncoder для целевой переменной
     target_encoder = LabelEncoder()
     target_encoder.fit(df['NObeyesdad'])
 
-    # Обучаем StandardScaler для числовых колонок
     scaler = StandardScaler()
     scaler.fit(df[numerical_cols])
 
-    # Применяем трансформации к данным
     df_encoded = df.copy()
     for col in categorical_cols:
         df_encoded[col] = label_encoders[col].transform(df_encoded[col])
     df_encoded[numerical_cols] = scaler.transform(df_encoded[numerical_cols])
     df_encoded['NObeyesdad'] = target_encoder.transform(df_encoded['NObeyesdad'])
 
-    # Разбиваем на тренировочную и тестовую выборки
     X = df_encoded.drop('NObeyesdad', axis=1)
     y = df_encoded['NObeyesdad']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -100,7 +92,7 @@ def get_knn_prediction():
     return report
 
 
-def add_new_data_and_retrain(data: UserInput):
+def add_new_data_and_retrain(data: ObesityInput):
     global df
     df_existing = load_data_from_excel()
     new_row = pd.DataFrame([data.model_dump()])

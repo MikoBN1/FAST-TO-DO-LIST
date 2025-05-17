@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Response
+
+from schemas.dataset_schema import ObesityInput
 from schemas.user_input_schema import UserInput
-from services.obesity_prediction_service import get_knn_prediction, get_knn_error_plot, preprocess_user_input, predict_obesity_class
+from services.obesity_prediction_service import get_knn_prediction, get_knn_error_plot, preprocess_user_input, predict_obesity_class, add_new_data_and_retrain
 router = APIRouter(prefix="/prediction", tags=["prediction"])
 
 @router.get("/obesity")
@@ -18,3 +20,8 @@ def predict(user_data: UserInput):
     pred_class = predict_obesity_class(user_df)
     user_dict = user_df.to_dict(orient="records")
     return {"pred_class": pred_class}
+
+@router.post("/data")
+def add_data(data: ObesityInput):
+    add_new_data_and_retrain(data)
+    return {"status": "success"}

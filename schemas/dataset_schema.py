@@ -17,4 +17,4 @@ class ObesityInput(BaseModel):
     TUE: float
     CALC: str
     MTRANS: str
-    NObeyesdad: str  # true label (optional, can also predict without it)
+    NObeyesdad: str
