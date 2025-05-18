@@ -5,10 +5,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, accuracy_score
 import io
-
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
 from schemas.dataset_schema import ObesityInput
 from schemas.user_input_schema import UserInput
-
+import numpy as np
 df = None
 label_encoders = {}
 target_encoder = None
@@ -120,5 +121,18 @@ def predict_obesity_class(user_df):
     pred_class = target_encoder.inverse_transform(pred_encoded)
     return pred_class[0]
 
+
+def plot_confusion_matrix():
+    train_model()
+    y_pred = make_prediction()
+    cm = confusion_matrix(y_test, y_pred)
+    labels = target_encoder.inverse_transform(np.unique(y_test))
+
+    plt.figure(figsize=(10, 8))
+    sns.heatmap(cm, annot=True, fmt='d', xticklabels=labels, yticklabels=labels, cmap='Blues')
+    plt.xlabel("Predicted")
+    plt.ylabel("Actual")
+    plt.title("Confusion Matrix")
+    plt.show()
 
 initialize()

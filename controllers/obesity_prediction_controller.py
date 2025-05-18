@@ -2,12 +2,16 @@ from fastapi import APIRouter, HTTPException, Response
 
 from schemas.dataset_schema import ObesityInput
 from schemas.user_input_schema import UserInput
-from services.obesity_prediction_service import get_knn_prediction, get_knn_error_plot, preprocess_user_input, predict_obesity_class, add_new_data_and_retrain
+from services.obesity_prediction_service import get_knn_prediction, get_knn_error_plot, preprocess_user_input, predict_obesity_class, add_new_data_and_retrain, plot_confusion_matrix
 router = APIRouter(prefix="/prediction", tags=["prediction"])
 
 @router.get("/obesity")
 def make_prediction():
     return get_knn_prediction()
+
+@router.get("/confusion/matrix")
+def make_prediction():
+    return plot_confusion_matrix()
 
 @router.get("/error-plot")
 def get_error_plot():
